@@ -34,11 +34,24 @@
   "My customization variables for the init.el file."
   :group 'programming)
 
-(defconst julia-staticlint-jl-path
-  (expand-file-name "julia_staticlint.jl"
+(defconst julia-staticlint-server-path
+  (expand-file-name "julia_staticlint_server.jl"
 		    (file-name-directory load-file-name))
-  "Path to the Julia file executable that return the
-  StaticLint.jl linter output.")
+  "Path to the Julia StaticLint.jl background server file.")
+
+(defconst julia-staticlint-client-path
+  (expand-file-name "julia_staticlint_client.jl"
+		    (file-name-directory load-file-name))
+  "Path to the Julia StaticLint.jl client file.")
+
+(defconst julia-staticlint-server-buf-name "*julia-staticlint-server*"
+  "Name of the buffer holding the output of the linting server process.")
+
+(defvar julia-staticlint-server-proc-buf nil
+  "Server background process buffer.")
+
+(defvar julia-staticlint-server-proc nil
+  "Server background process.")
 
 ;;;###autoload
 (defun parse-julia-staticlint-errors (output checker buffer)
@@ -64,14 +77,7 @@
 	  ;; Get the line number and column
 	  (save-excursion
 	    (goto-char pos)
-	    (setq error-line (line-number-at-pos)
-		  ;; error-col-start (current-column)
-		  ;; error-col-end (progn
-		  ;; 		  ;; Go to end of word
-		  ;; 		  (re-search-forward "\s\\|\n\\|[.,()]\\|\`"
-		  ;; 				     nil t)
-		  ;; 		  (current-column))
-		  )))
+	    (setq error-line (line-number-at-pos))))
 	;; Save error in a flycheck-error object
 	(when (string= filename this-buffer-name)
 	  (add-to-list 'julia-staticlint-errors
@@ -90,7 +96,7 @@
 
 See URL `https://github.com/julia-vscode/StaticLint.jl'."
   :command ("julia"
-	    (eval (concat julia-staticlint-jl-path))
+	    (eval (concat julia-staticlint-client-path))
 	    source-original)
   :error-parser parse-julia-staticlint-errors
   :modes julia-mode
@@ -99,10 +105,26 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 	       (buffer-file-name)))
 
 ;;;###autoload
-(defun julia-staticlint-setup ()
+(defun julia-staticlint-init ()
   "Install the flycheck linter."
   (interactive)
   (add-to-list 'flycheck-checkers 'julia-staticlint))
+
+;;;###autoload
+(defun julia-staticlint-activate ()
+  "Activate the Julia static checker."
+  (interactive)
+  (setq julia-staticlint-server-proc-buf
+	(get-buffer-create julia-staticlint-server-buf-name))
+  (unless julia-staticlint-server-proc
+    (setq julia-staticlint-server-proc
+	  (make-process
+	   :name "julia-staticlint-server"
+	   :buffer julia-staticlint-server-proc-buf
+	   :stderr julia-staticlint-server-proc-buf
+	   :command `("julia" ,julia-staticlint-server-path)
+	   :noquery t)))
+  )
 
 (provide 'julia-staticlint)
 

@@ -1,7 +1,9 @@
 * julia-staticlint
 
 This simple package provides static code linting of Julia ~julia-mode~ language
-buffers through the [[https://github.com/julia-vscode/StaticLint.jl][StaticLint.jl]] backend.
+buffers through the [[https://github.com/julia-vscode/StaticLint.jl][StaticLint.jl]] backend. The static linting is done by a
+background process, which sends the errors that it over a TCP connection to
+Flycheck for display in the Emacs buffer.
 
 I have tested this code with the following setup:
 
@@ -21,17 +23,19 @@ your ~init.el~ (using [[https://github.com/jwiegley/use-package][use-package]] a
     :ensure nil
     :quelpa ((julia-staticlint :fetcher github
 			       :repo "dmalyuta/julia-staticlint"
-			       :files (:defaults "julia_staticlint.jl")))
+			       :files (:defaults "julia_staticlint_server.jl"
+						 "julia_staticlint_client.jl")))
+    :hook ((julia-mode . julia-staticlint-activate))
     :config
-    (julia-staticlint-setup))
+    (julia-staticlint-init))
 #+end_src
 
 Because this code uses a Julia backend, make sure that you can open a Julia
 REPL using the command ~julia~ in your terminal. You should also have the
-following packages installed in Julia: ~StaticLint~, ~SymbolServer~, and
-~Printf~. Install by entering the following sequence into the Julia REPL:
+following packages installed in Julia: ~StaticLint~, ~SymbolServer~, ~Printf~,
+and ~Sockets~. Install by entering the following sequence into the Julia REPL:
 
 #+begin_src julia
 julia> using Pkg
-julia> Pkg.add(["SymbolServer","StaticLint","Printf"])
+julia> Pkg.add(["SymbolServer","StaticLint","Printf","Sockets"])
 #+end_src
