@@ -1,0 +1,36 @@
+* julia-staticlint
+
+This simple package provides static code linting of Julia ~julia-mode~ language
+buffers through the [[https://github.com/julia-vscode/StaticLint.jl][StaticLint.jl]] backend.
+
+I have tested this code with the following setup:
+
+- OS: Ubuntu 20.04.1 LTS
+- Emacs: 27.1.9
+- Julia: 1.5.3
+  - StaticLint: v7.0.0
+  - SymbolServer: v6.0.1
+
+In order to make this code run for your Emacs setup, include the following in
+your ~init.el~ (using [[https://github.com/jwiegley/use-package][use-package]] and [[https://github.com/quelpa/quelpa][quelpa]]):
+
+#+begin_src emacs-lisp
+(use-package julia-staticlint
+  ;; https://github.com/dmalyuta/julia-staticlint
+  ;; Emacs Flycheck support for StaticLint.jl
+  :ensure nil
+  :quelpa ((julia-staticlint :fetcher github
+			     :repo "dmalyuta/julia-staticlint"))
+  :config
+  (julia-staticlint-setup))
+#+end_src
+
+Because this code uses a Julia backend, make sure that you can open a Julia
+REPL using the command ~julia~ in your terminal. You should also have the
+following packages installed in Julia: ~StaticLint~, ~SymbolServer~, and
+~Printf~. Install by entering the following sequence into the Julia REPL:
+
+#+begin_src julia
+julia> using Pkg
+julia> Pkg.add(["SymbolServer","StaticLint","Printf"])
+#+end_src
