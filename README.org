@@ -15,14 +15,15 @@ In order to make this code run for your Emacs setup, include the following in
 your ~init.el~ (using [[https://github.com/jwiegley/use-package][use-package]] and [[https://github.com/quelpa/quelpa][quelpa]]):
 
 #+begin_src emacs-lisp
-(use-package julia-staticlint
-  ;; https://github.com/dmalyuta/julia-staticlint
-  ;; Emacs Flycheck support for StaticLint.jl
-  :ensure nil
-  :quelpa ((julia-staticlint :fetcher github
-			     :repo "dmalyuta/julia-staticlint"))
-  :config
-  (julia-staticlint-setup))
+  (use-package julia-staticlint
+    ;; https://github.com/dmalyuta/julia-staticlint
+    ;; Emacs Flycheck support for StaticLint.jl
+    :ensure nil
+    :quelpa ((julia-staticlint :fetcher github
+			       :repo "dmalyuta/julia-staticlint"
+			       :files (:defaults "julia_staticlint.jl")))
+    :config
+    (julia-staticlint-setup))
 #+end_src
 
 Because this code uses a Julia backend, make sure that you can open a Julia

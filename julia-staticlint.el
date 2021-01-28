@@ -35,7 +35,7 @@
   :group 'programming)
 
 (defconst julia-staticlint-jl-path
-  (expand-file-name "julia_static_lint.jl"
+  (expand-file-name "julia_staticlint.jl"
 		    (file-name-directory load-file-name))
   "Path to the Julia file executable that return the
   StaticLint.jl linter output.")
