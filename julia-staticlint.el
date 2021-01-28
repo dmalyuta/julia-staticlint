@@ -43,7 +43,8 @@
 ;;;###autoload
 (defun parse-julia-staticlint-errors (output checker buffer)
   "Parse the errors for Flycheck, output by StaticLint.jl."
-  (setq julia-StaticLint-errors nil)
+  (setq julia-staticlint-errors nil
+	this-buffer-name (buffer-file-name buffer))
   (with-temp-buffer
     (insert output)
     (goto-char (point-min))
@@ -64,19 +65,25 @@
 	  (save-excursion
 	    (goto-char pos)
 	    (setq error-line (line-number-at-pos)
-		  error-column (+ (current-column) 2))))
+		  ;; error-col-start (current-column)
+		  ;; error-col-end (progn
+		  ;; 		  ;; Go to end of word
+		  ;; 		  (re-search-forward "\s\\|\n\\|[.,()]\\|\`"
+		  ;; 				     nil t)
+		  ;; 		  (current-column))
+		  )))
 	;; Save error in a flycheck-error object
-	(add-to-list 'julia-StaticLint-errors
-		     (flycheck-error-new
-		      :buffer buffer
-		      :checker checker
-		      :filename filename
-		      :line error-line
-		      :column error-column
-		      :message message
-		      :level 'error))
+	(when (string= filename this-buffer-name)
+	  (add-to-list 'julia-staticlint-errors
+		       (flycheck-error-new
+			:buffer buffer
+			:checker checker
+			:filename filename
+			:line error-line
+			:message message
+			:level 'error)))
 	)))
-  julia-StaticLint-errors)
+  julia-staticlint-errors)
 
 (flycheck-define-checker julia-staticlint
   "A Julia static syntax checker using StaticLint.jl.
