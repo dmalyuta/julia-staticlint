@@ -67,27 +67,38 @@
 	;; Extract error data using regexps
 	(save-match-data
 	  (and (string-match
-		"\\(.*?\\):\\([0-9]*?\\): \\(\\(?:\\sw\\)*?\\): \\(.*\\)"
+		"\\(.*?\\):\\([0-9]*?\\):\\([0-9]*?\\): \\(\\(?:\\sw\\)*?\\): \\(.*\\)"
 		this-error)
 	       (setq filename (match-string 1 this-error)
-		     pos (string-to-number (match-string 2 this-error))
-		     level (match-string 3 this-error)
-		     message (match-string 4 this-error))))
-	(with-current-buffer buffer
-	  ;; Get the line number and column
-	  (save-excursion
-	    (goto-char pos)
-	    (setq error-line (line-number-at-pos))))
+		     pos-beg (string-to-number (match-string 2 this-error))
+		     pos-end (string-to-number (match-string 3 this-error))
+		     level (match-string 4 this-error)
+		     message (match-string 5 this-error))))
 	;; Save error in a flycheck-error object
 	(when (string= filename this-buffer-name)
+	  ;; Extract error location
+	  (with-current-buffer buffer
+	    (save-excursion
+	      (goto-char pos-beg)
+	      (setq line-beg (line-number-at-pos)
+		    col-beg (1+ (current-column)))
+	      (goto-char pos-end)
+	      (setq line-end (line-number-at-pos)
+		    col-end (1+ (current-column)))))
+	  ;; Save the error to list of errors in this buffer
 	  (add-to-list 'julia-staticlint-errors
 		       (flycheck-error-new
 			:buffer buffer
 			:checker checker
 			:filename filename
-			:line error-line
 			:message message
-			:level 'error)))
+			:level 'error
+			;; Set the error range in text, spanning from
+			;; (line-beg,col-beg) to (line-end,col-end)
+			:line line-beg
+			:end-line line-end
+			:column col-beg
+			:end-column col-end)))
 	)))
   julia-staticlint-errors)
 
