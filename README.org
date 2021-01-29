@@ -5,7 +5,7 @@ buffers through the [[https://github.com/julia-vscode/StaticLint.jl][StaticLint.
 background process, which sends errors over a TCP connection to Flycheck for
 display in the Emacs buffer. The result looks like this:
 
-<p align="center"><img src="./demo.png" /></p>
+#+HTML: <p align="center"><img src="./demo.png" /></p>
 
 This code was tested with the following setup:
 
