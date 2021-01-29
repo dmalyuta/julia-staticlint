@@ -1,17 +1,13 @@
-#+ATTR_HTML: :style margin-left: auto; margin-right: auto;
-
 * julia-staticlint
 
 This simple package provides static code linting of Julia ~julia-mode~ language
 buffers through the [[https://github.com/julia-vscode/StaticLint.jl][StaticLint.jl]] backend. The static linting is done by a
-background process, which sends the errors that it over a TCP connection to
-Flycheck for display in the Emacs buffer.
+background process, which sends errors over a TCP connection to Flycheck for
+display in the Emacs buffer. The result looks like this:
 
-#+CAPTION: An example of Flycheck with julia-staticlint
-#+NAME: demo-fig
-[[./demo.png]]
+<p align="center"><img src="./demo.png" /></p>
 
-I have tested this code with the following setup:
+This code was tested with the following setup:
 
 - OS: Ubuntu 20.04.1 LTS
 - Emacs: 27.1.9
