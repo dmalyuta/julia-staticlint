@@ -34,14 +34,11 @@ Args:
 """
 function fix_string_span_unicode!(e::EXPR)
     val = CSTParser.valof(e)
-    if typeof(val)==String && !isascii(val)
+    if typeof(val)==String
         # Hacky length fix
-        for c in val
-            if !isascii(c)
-                e.span -= 1
-                e.fullspan -= 1
-            end
-        end
+        diff = sizeof(val)-length(val)
+        e.span -= diff
+        e.fullspan -= diff
     end
 end
 
