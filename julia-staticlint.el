@@ -149,7 +149,7 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
   "Restart the background Julia static checker process."
   (interactive)
   (julia-staticlint-stop)
-  (julia-staticlint-activate))
+  (run-with-timer 1 nil 'julia-staticlint-activate))
 
 (provide 'julia-staticlint)
 
