@@ -125,17 +125,17 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 (defun julia-staticlint-activate ()
   "Activate the Julia static checker."
   (interactive)
-  (setq julia-staticlint-server-proc-buf
-	(get-buffer-create julia-staticlint-server-buf-name))
-  (unless julia-staticlint-server-proc
+  (unless (get-buffer-process julia-staticlint-server-proc-buf)
+    ;; Start the background process if it is not already running
+    (setq julia-staticlint-server-proc-buf
+	  (get-buffer-create julia-staticlint-server-buf-name))
     (setq julia-staticlint-server-proc
 	  (make-process
 	   :name "julia-staticlint-server"
 	   :buffer julia-staticlint-server-proc-buf
 	   :stderr julia-staticlint-server-proc-buf
 	   :command `("julia" ,julia-staticlint-server-path)
-	   :noquery t)))
-  )
+	   :noquery t))))
 
 (provide 'julia-staticlint)
 
