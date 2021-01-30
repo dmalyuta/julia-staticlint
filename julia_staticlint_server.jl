@@ -40,8 +40,8 @@ Args:
 Returns:
     msg: the error message in the agreed format.
 """
-function format_error(p::String, pos::Tuple{Int,Int}, desc::String)::String
-    msg = @sprintf "%s:%d:%d: error: %s\n" p pos... desc
+function format_error(p::String, pos::ErrorSpan, desc::String)::String
+    msg = @sprintf "%s:%d:%d: error: %s\n" p pos.beg_char pos.end_char desc
     return msg
 end
 
@@ -116,11 +116,10 @@ Convert error start and end character locations from a byte measurement to a
 strict character count measurement.
 
 Args:
-    f: the file path which this error is for.
+    src: the source code (as a string) which this error is for.
     offset: the error location in bytes. Modified in place.
 """
-function convert_pos_byte_to_char!(f::String, offset::ErrorSpan)
-    src = read(f, String)
+function convert_pos_byte_to_char!(src::String, offset::ErrorSpan)
     offset.beg_char = length(src, 1, offset.beg_char)
     offset.end_char = length(src, 1, offset.end_char)
 end
@@ -153,22 +152,29 @@ function lint_file(rootfile::String,
     end
 
     # Send errors back to client
+    files_src = Dict(f.path=>f.source)
     for (p, hs) in hints
         for (offset, x) in hs
+            if !haskey(files_src, p)
+                files_src[p] = read(p, String)
+            end
+
             if (SL.haserror(x) &&
                 SL.errorof(x) isa SL.LintCodes)
                 error_description = SL.LintCodeDescriptions[SL.errorof(x)]
-                convert_pos_byte_to_char!(p, offset)
+                convert_pos_byte_to_char!(files_src[p], offset)
                 write(conn, format_error(p, offset, error_description))
             else
                 # missing reference
                 error_description = string("Missing reference for ",
                                            SL.CSTParser.valof(x))
-                convert_pos_byte_to_char!(p, offset)
+                convert_pos_byte_to_char!(files_src[p], offset)
                 write(conn, format_error(p, offset, error_description))
             end
         end
     end
+
+    return nothing
 end
 
 @printf "Started server\n"
@@ -188,6 +194,9 @@ while true
     try
         lint_file(rootfile, server, conn)
     catch err
+        bt = catch_backtrace()
+        msg = sprint(showerror, err, bt)
+        println("***Experienced the following error:***\n", msg)
     end
     close(conn)
 end
