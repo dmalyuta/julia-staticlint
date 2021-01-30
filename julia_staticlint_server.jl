@@ -9,9 +9,14 @@ using SymbolServer
 using Printf
 using Sockets
 
+mutable struct ErrorSpan
+    beg_char::Integer
+    end_char::Integer
+end
+
 SL = StaticLint
 SS = SymbolServer
-T_Error = Tuple{Tuple{Int,Int},EXPR}
+T_Error = Tuple{ErrorSpan,EXPR}
 
 # Julia configuration
 depot = first(SS.Pkg.depots())
@@ -25,21 +30,19 @@ _, server.symbolserver = SS.getstore(ssi, env)
 server.symbol_extends  = SS.collect_extended_methods(server.symbolserver)
 
 """
-Reduce the recorded span and fullspan of the expression by CSTParser, when the
-expression contains unicode characters. The change is done on the original
-struct.
+Print out the error.
 
 Args:
-    e: the original expression.
+    p: the file path.
+    pos: the (start,end) character positions.
+    desc: the error description
+
+Returns:
+    msg: the error message in the agreed format.
 """
-function fix_string_span_unicode!(e::EXPR)
-    val = CSTParser.valof(e)
-    if typeof(val)==String
-        # Hacky length fix
-        diff = sizeof(val)-length(val)
-        e.span -= diff
-        e.fullspan -= diff
-    end
+function format_error(p::String, pos::Tuple{Int,Int}, desc::String)::String
+    msg = @sprintf "%s:%d:%d: error: %s\n" p pos... desc
+    return msg
 end
 
 """
@@ -68,7 +71,7 @@ function lint_collect_hints(x::EXPR,
 
     if headof(x) === :errortoken
         # collect parse errors
-        push!(errs, ((pos, pos+x.span), x))
+        push!(errs, (ErrorSpan(pos, pos+x.span), x))
     elseif !isquoted
         if missingrefs != :none &&
             isidentifier(x) &&
@@ -85,19 +88,19 @@ function lint_collect_hints(x::EXPR,
                 is_in_fexpr(x, x -> (iscall(x) &&
                                      isidentifier(x.args[1]) &&
                                      valof(x.args[1]) == "ccall")))
-            push!(errs, ((pos, pos+x.span), x))
+            push!(errs, (ErrorSpan(pos, pos+x.span), x))
         elseif haserror(x) && errorof(x) isa SL.LintCodes
             # collect lint hints
-            push!(errs, ((pos, pos+x.span), x))
+            push!(errs, (ErrorSpan(pos, pos+x.span), x))
         end
-    elseif isquoted && missingrefs == :all && should_mark_missing_getfield_ref(x, server)
-        push!(errs, ((pos, pos+x.span), x))
+    elseif (isquoted &&
+            missingrefs == :all &&
+            should_mark_missing_getfield_ref(x, server))
+        push!(errs, (ErrorSpan(pos, pos+x.span), x))
     end
 
     for a in x
         if a.args === nothing
-            fix_string_span_unicode!(a)
-            # println(pos, ",", pos+a.span, ",", valof(a))
             lint_collect_hints(a, server, missingrefs, isquoted, errs, pos)
             pos += a.fullspan
         else
@@ -109,19 +112,17 @@ function lint_collect_hints(x::EXPR,
 end
 
 """
-Print out the error.
+Convert error start and end character locations from a byte measurement to a
+strict character count measurement.
 
 Args:
-    p: the file path.
-    pos: the (start,end) character positions.
-    desc: the error description
-
-Returns:
-    msg: the error message in the agreed format.
+    f: the file path which this error is for.
+    offset: the error location in bytes. Modified in place.
 """
-function format_error(p::String, pos::Tuple{Int,Int}, desc::String)::String
-    msg = @sprintf "%s:%d:%d: error: %s\n" p pos... desc
-    return msg
+function convert_pos_byte_to_char!(f::String, offset::ErrorSpan)
+    src = read(f, String)
+    offset.beg_char = length(src, 1, offset.beg_char)
+    offset.end_char = length(src, 1, offset.end_char)
 end
 
 """
@@ -157,17 +158,17 @@ function lint_file(rootfile::String,
             if (SL.haserror(x) &&
                 SL.errorof(x) isa SL.LintCodes)
                 error_description = SL.LintCodeDescriptions[SL.errorof(x)]
+                convert_pos_byte_to_char!(p, offset)
                 write(conn, format_error(p, offset, error_description))
             else
                 # missing reference
                 error_description = string("Missing reference for ",
                                            SL.CSTParser.valof(x))
+                convert_pos_byte_to_char!(p, offset)
                 write(conn, format_error(p, offset, error_description))
             end
         end
     end
-
-    return nothing
 end
 
 @printf "Started server\n"
