@@ -137,6 +137,20 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 	   :command `("julia" ,julia-staticlint-server-path)
 	   :noquery t))))
 
+;;;###autoload
+(defun julia-staticlint-stop ()
+  "Stop the background Julia static checker process."
+  (interactive)
+  (when (get-buffer-process julia-staticlint-server-proc-buf)
+    (delete-process julia-staticlint-server-proc-buf)))
+
+;;;###autoload
+(defun julia-staticlint-restart ()
+  "Restart the background Julia static checker process."
+  (interactive)
+  (julia-staticlint-stop)
+  (julia-staticlint-activate))
+
 (provide 'julia-staticlint)
 
 ;;; julia-staticlint.el ends here

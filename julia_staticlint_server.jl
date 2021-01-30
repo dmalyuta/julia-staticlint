@@ -18,17 +18,6 @@ SL = StaticLint
 SS = SymbolServer
 T_Error = Tuple{ErrorSpan,EXPR}
 
-# Julia configuration
-depot = first(SS.Pkg.depots())
-cache = joinpath(dirname(pathof(SS)), "..", "store")
-env = dirname(SS.Pkg.Types.Context().env.project_file)
-
-# Setup server
-server = SL.FileServer()
-ssi = SymbolServerInstance(depot, cache)
-_, server.symbolserver = SS.getstore(ssi, env)
-server.symbol_extends  = SS.collect_extended_methods(server.symbolserver)
-
 """
 Print out the error.
 
@@ -176,6 +165,21 @@ function lint_file(rootfile::String,
 
     return nothing
 end
+
+# ..:: Start the server loop ::..
+
+@printf "Initializing server\n"
+
+# Julia configuration
+depot = first(SS.Pkg.depots())
+cache = joinpath(dirname(pathof(SS)), "..", "store")
+env = dirname(SS.Pkg.Types.Context().env.project_file)
+
+# Setup server
+server = SL.FileServer()
+ssi = SymbolServerInstance(depot, cache)
+_, server.symbolserver = SS.getstore(ssi, env)
+server.symbol_extends  = SS.collect_extended_methods(server.symbolserver)
 
 @printf "Started server\n"
 
