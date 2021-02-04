@@ -54,6 +54,16 @@
   "Server background process.")
 
 ;;;###autoload
+(defun julia-staticlint-chars-from-start (pos)
+  "Get the number of characters between line start and current
+cursor position."
+  (save-excursion
+    (goto-char pos)
+    (forward-line 0)
+    (let ((start~col (point)))
+      (length (buffer-substring start~col pos)))))
+
+;;;###autoload
 (defun parse-julia-staticlint-errors (output checker buffer)
   "Parse the errors for Flycheck, output by StaticLint.jl."
   (setq julia-staticlint-errors nil
@@ -81,10 +91,10 @@
 	    (save-excursion
 	      (goto-char pos-beg)
 	      (setq line-beg (line-number-at-pos)
-		    col-beg (1+ (current-column)))
+		    col-beg (1+ (julia-staticlint-chars-from-start pos-beg)))
 	      (goto-char pos-end)
 	      (setq line-end (line-number-at-pos)
-		    col-end (1+ (current-column)))))
+		    col-end (1+ (julia-staticlint-chars-from-start pos-end)))))
 	  ;; Save the error to list of errors in this buffer
 	  (add-to-list 'julia-staticlint-errors
 		       (flycheck-error-new
