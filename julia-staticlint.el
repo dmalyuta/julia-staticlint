@@ -86,29 +86,45 @@ cursor position."
 		     message (match-string 5 this-error))))
 	;; Save error in a flycheck-error object
 	(when (string= filename this-buffer-name)
-	  ;; Extract error location
+	  ;; Check if final line contains a comment starting with `#noerr',
+	  ;; which means suppress this error
 	  (with-current-buffer buffer
 	    (save-excursion
-	      (goto-char pos-beg)
-	      (setq line-beg (line-number-at-pos)
-		    col-beg (1+ (julia-staticlint-chars-from-start pos-beg)))
-	      (goto-char pos-end)
-	      (setq line-end (line-number-at-pos)
-		    col-end (1+ (julia-staticlint-chars-from-start pos-end)))))
-	  ;; Save the error to list of errors in this buffer
-	  (add-to-list 'julia-staticlint-errors
-		       (flycheck-error-new
-			:buffer buffer
-			:checker checker
-			:filename filename
-			:message message
-			:level 'error
-			;; Set the error range in text, spanning from
-			;; (line-beg,col-beg) to (line-end,col-end)
-			:line line-beg
-			:end-line line-end
-			:column col-beg
-			:end-column col-end)))
+	      (let* ((search-pos-start pos-end)
+		     (search-pos-end (progn
+				       (goto-char search-pos-start)
+				       (forward-line)
+				       (1- (point)))))
+		(goto-char search-pos-start)
+		(setq julia-staticlint-found-ignore
+		      (re-search-forward
+		       "#noerr\\(?:$\\|\s+.*$\\)" search-pos-end t)))))
+	  (unless julia-staticlint-found-ignore
+	    ;; Extract error location
+	    (with-current-buffer buffer
+	      (save-excursion
+		(goto-char pos-beg)
+		(setq line-beg (line-number-at-pos)
+		      col-beg (1+ (julia-staticlint-chars-from-start
+				   pos-beg)))
+		(goto-char pos-end)
+		(setq line-end (line-number-at-pos)
+		      col-end (1+ (julia-staticlint-chars-from-start
+				   pos-end)))))
+	    ;; Save the error to list of errors in this buffer
+	    (add-to-list 'julia-staticlint-errors
+			 (flycheck-error-new
+			  :buffer buffer
+			  :checker checker
+			  :filename filename
+			  :message message
+			  :level 'error
+			  ;; Set the error range in text, spanning from
+			  ;; (line-beg,col-beg) to (line-end,col-end)
+			  :line line-beg
+			  :end-line line-end
+			  :column col-beg
+			  :end-column col-end))))
 	)))
   julia-staticlint-errors)
 
