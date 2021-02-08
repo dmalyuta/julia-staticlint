@@ -98,7 +98,11 @@ cursor position."
 		(goto-char search-pos-start)
 		(setq julia-staticlint-found-ignore
 		      (re-search-forward
-		       "#noerr\\(?:$\\|\s+.*$\\)" search-pos-end t)))))
+		       (format "#no%s\\(?:$\\|\s+.*$\\)"
+			       (cond ((string= level "error") "err")
+				     ((string= level "warn") "warn")
+				     ((string= level "info") "info")
+				     (t "err"))) search-pos-end t)))))
 	  (unless julia-staticlint-found-ignore
 	    ;; Extract error location
 	    (with-current-buffer buffer
