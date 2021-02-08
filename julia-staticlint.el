@@ -118,7 +118,10 @@ cursor position."
 			  :checker checker
 			  :filename filename
 			  :message message
-			  :level 'error
+			  :level (cond ((string= level "error") 'error)
+				       ((string= level "warn") 'warning)
+				       ((string= level "info") 'info)
+				       (t 'error))
 			  ;; Set the error range in text, spanning from
 			  ;; (line-beg,col-beg) to (line-end,col-end)
 			  :line line-beg
