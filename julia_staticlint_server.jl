@@ -145,8 +145,9 @@ Args:
     src: the source code (as a string) which this error is for.
     offset: the error location in bytes. Modified in place. =#
 function convert_pos_byte_to_char!(src::String, offset::ErrorSpan)
-    offset.beg_char = length(src, 1, offset.beg_char)
-    offset.end_char = length(src, 1, offset.end_char)
+    strlen_byte = lastindex(src)
+    offset.beg_char = length(src, 1, min(offset.beg_char, strlen_byte))
+    offset.end_char = length(src, 1, min(offset.end_char, strlen_byte))
 end
 
 #= Convert error to an error level.
