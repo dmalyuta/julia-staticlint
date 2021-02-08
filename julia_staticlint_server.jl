@@ -18,6 +18,7 @@ end
 
 SL = StaticLint
 SS = SymbolServer
+CSTP = SL.CSTParser
 T_Error = Tuple{ErrorSpan,EXPR}
 
 error = "error"
@@ -148,6 +149,22 @@ function convert_pos_byte_to_char!(src::String, offset::ErrorSpan)
     offset.end_char = length(src, 1, offset.end_char)
 end
 
+#= Convert error to an error level.
+
+Args:
+    err: the error object.
+
+Returns:
+    lvl: the error level. =#
+function get_error_level(x::EXPR)::String
+    error_code = SL.errorof(x)
+    lvl = error # Default error level
+    if haskey(LintCodeToErrorLevel, error_code)
+        lvl = LintCodeToErrorLevel[error_code]
+    end
+    return lvl
+end
+
 #= Static lint a file.
 
 Args:
@@ -184,13 +201,12 @@ function lint_file(rootfile::String,
             if (SL.haserror(x) &&
                 SL.errorof(x) isa SL.LintCodes)
                 description = SL.LintCodeDescriptions[SL.errorof(x)]
-                level = LintCodeToErrorLevel[SL.errorof(x)]
+                level = get_error_level(x)
                 convert_pos_byte_to_char!(files_src[p], offset)
                 write(conn, format_error(p, offset, description, level))
             else
                 # Use of undeclared variable
-                error_description = string("Missing reference for ",
-                                           SL.CSTParser.valof(x))
+                description = string("Missing reference for ", CSTP.valof(x))
                 level = error
                 convert_pos_byte_to_char!(files_src[p], offset)
                 write(conn, format_error(p, offset, description, level))
@@ -232,6 +248,7 @@ while true
     # Line the file
     try
         lint_file(rootfile, server, conn)
+        write(conn, "<<end_lint>>")
     catch err
         bt = catch_backtrace()
         msg = sprint(showerror, err, bt)

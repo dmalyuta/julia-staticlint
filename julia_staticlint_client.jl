@@ -11,7 +11,7 @@ try
     # Receive error messages back
     while true
         response = readline(conn)
-        if response == ""
+        if response == "<<end_lint>>"
             break
         end
         @printf "%s\n" response
