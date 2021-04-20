@@ -146,7 +146,7 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
   :modes julia-mode
   :predicate (lambda ()
 	       ;; Only run when there is a file associated with the buffer
-	       (buffer-file-name)))
+	       (file-exists-p (buffer-file-name))))
 
 ;;;###autoload
 (defun julia-staticlint-init ()
