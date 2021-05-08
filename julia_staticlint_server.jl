@@ -51,8 +51,7 @@ const LintCodeToErrorLevel = Dict{SL.LintCodes,String}(
     SL.TypeDeclOnGlobalVariable => error,
     SL.UnsupportedConstLocalVariable => warn,
     SL.UnassignedKeywordArgument => error,
-    SL.CannotDefineFuncAlreadyHasValue => error,
-    SL.DuplicateFuncArgName => error)
+    SL.CannotDefineFuncAlreadyHasValue => error)
 
 # ..:: Functions ::..
 
