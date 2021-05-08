@@ -7,6 +7,7 @@ using CSTParser: EXPR, headof, isidentifier, isnonstdid, valof, iscall
 
 using SymbolServer
 using Printf
+using Dates
 using Sockets
 
 # ..:: Variables and data structures ::..
@@ -55,22 +56,65 @@ const LintCodeToErrorLevel = Dict{SL.LintCodes,String}(
 
 # ..:: Functions ::..
 
-#= Print out the error.
+""" Make a string holding the current time. """
+print_time() = @sprintf("[%s] ", Dates.format(now(), "E U yyyy HH:MM:SS"))
 
-Args:
-    p: the file path.
-    pos: the (start,end) character positions.
-    desc: the error description
-    lvl: the error level (error? warning? info?)
+"""
+    shorten_string(str)
 
-Returns:
-    msg: the error message in the agreed format. =#
+Shorten the string to the last N of its characters.
+
+# Arguments
+- `str`: original string.
+
+# Returns
+The shortened string (just its tail).
+"""
+function shorten_string(str::AbstractString)::String
+    max_length = 25
+    return (length(str)<=max_length) ? str : "..."*last(str, max_length)
+end # function
+
+"""
+    print_error(msg)
+
+Print the error message.
+
+# Arguments
+- `msg`: the error message.
+"""
+function print_error(msg::String)::Nothing
+    splitter = ".jl:"
+    msg = split(msg, splitter)
+    msg[1] = shorten_string(msg[1])
+    msg = string(msg[1], splitter, msg[2])
+    @info print_time()*msg
+    return nothing
+end # function
+
+"""
+    format_error(p, pos, desc, lvl)
+
+Print out the error.
+
+# Arguments
+- `p`: the file path.
+- `pos`: the (start,end) character positions.
+- `desc`: the error description
+- `lvl`: the error level (error? warning? info?)
+
+# Returns
+- `msg`: the error message in the agreed format.
+"""
 function format_error(p::String, pos::ErrorSpan, desc::String, lvl::String)::String
     msg = @sprintf "%s:%d:%d: %s: %s\n" p pos.beg_char pos.end_char lvl desc
     return msg
 end
 
-#= Collect linter output about the file.
+"""
+    lint_collect_hints(x, server[, missingrefs, isquoted, errs, pos])
+
+Collect linter output about the file.
 
 This is basically copied from the StaticLint.collect_hints function, however I
 updated it slightly to output the (start, end) character positions of the
@@ -80,7 +124,8 @@ character positions match correctly.
 
 Note: the second output is used internally by the function. You don't need to
 look at it when using the function to collect the array of errors (the first
-output). =#
+output).
+"""
 function lint_collect_hints(x::EXPR,
                             server,
                             missingrefs=:all,
@@ -135,27 +180,35 @@ function lint_collect_hints(x::EXPR,
     return errs, pos
 end
 
-#= Convert byte to character count.
+"""
+    convert_pos_byte_to_char!(src, offset)
+
+Convert byte to character count.
 
 Convert error start and end character locations from a byte measurement to a
 strict character count measurement.
 
-Args:
-    src: the source code (as a string) which this error is for.
-    offset: the error location in bytes. Modified in place. =#
+# Arguments
+- `src`: the source code (as a string) which this error is for.
+- `offset`: the error location in bytes. Modified in place.
+"""
 function convert_pos_byte_to_char!(src::String, offset::ErrorSpan)
     strlen_byte = lastindex(src)
     offset.beg_char = length(src, 1, min(offset.beg_char, strlen_byte))
     offset.end_char = length(src, 1, min(offset.end_char, strlen_byte))
 end
 
-#= Convert error to an error level.
+"""
+    get_error_level(x)
 
-Args:
-    err: the error object.
+Convert error to an error level.
 
-Returns:
-    lvl: the error level. =#
+# Arguments
+- `err`: the error object.
+
+# Returns
+- `lvl`: the error level.
+"""
 function get_error_level(x::EXPR)::String
     error_code = SL.errorof(x)
     lvl = error # Default error level
@@ -165,22 +218,34 @@ function get_error_level(x::EXPR)::String
     return lvl
 end
 
-#= Static lint a file.
+"""
+    lint_file(rootfile, server, conn)
 
-Args:
-    rootfile: the file to be linted.
-    server: the StaticLint server.
-    conn: the TCP connection to send errors back over. =#
+Static lint a file.
+
+# Arguments
+- `rootfile`: the file to be linted.
+- `server`: the StaticLint server.
+- `conn`: the TCP connection to send errors back over.
+"""
 function lint_file(rootfile::String,
                    server::SL.FileServer,
                    conn::TCPSocket)::Nothing
+    @info print_time()*"Parsing file: "*shorten_string(rootfile)
+
     empty!(server.files)
+
+    @info print_time()*"Loading file..."
 
     # Load and parse the file
     f = SL.loadfile(server, rootfile)
 
+    @info print_time()*"Semanting pass..."
+
     # SL's main run- finding variables, scopes, etc.
     SL.semantic_pass(f)
+
+    @info print_time()*"Running lint checks..."
 
     # Run lint checks.
     hints = Dict()
@@ -203,23 +268,29 @@ function lint_file(rootfile::String,
                 description = SL.LintCodeDescriptions[SL.errorof(x)]
                 level = get_error_level(x)
                 convert_pos_byte_to_char!(files_src[p], offset)
-                write(conn, format_error(p, offset, description, level))
+                error_msg = format_error(p, offset, description, level)
+                print_error(error_msg)
+                write(conn, error_msg)
             else
                 # Use of undeclared variable
                 description = string("Missing reference for ", CSTP.valof(x))
                 level = error
                 convert_pos_byte_to_char!(files_src[p], offset)
-                write(conn, format_error(p, offset, description, level))
+                error_msg = format_error(p, offset, description, level)
+                print_error(error_msg)
+                write(conn, error_msg)
             end
         end
     end
+
+    @info print_time()*"Finished"
 
     return nothing
 end
 
 # ..:: Start the server loop ::..
 
-@printf "Initializing server\n"
+@info print_time()*"Initializing server"
 
 # Julia configuration
 depot = first(SS.Pkg.depots())
@@ -232,7 +303,7 @@ ssi = SymbolServerInstance(depot, cache)
 _, server.symbolserver = SS.getstore(ssi, env)
 server.symbol_extends  = SS.collect_extended_methods(server.symbolserver)
 
-@printf "Started server\n"
+@info print_time()*"Started server"
 
 tcpserver = listen(1111) # Start the server
 while true
@@ -242,6 +313,7 @@ while true
     rootfile = readline(conn)
     # Stop the server?
     if rootfile == "stop"
+        @info print_time()*"Received stop command, closing"
         close(conn)
         break
     end
@@ -252,11 +324,11 @@ while true
     catch err
         bt = catch_backtrace()
         msg = sprint(showerror, err, bt)
-        println("***Experienced the following error:***\n", msg)
+        @error print_time()*msg
     end
     close(conn)
 end
 
 close(tcpserver)
 
-@printf "Shutdown server\n"
+@info print_time()*"Shutdown server"

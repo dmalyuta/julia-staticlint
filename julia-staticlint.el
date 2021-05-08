@@ -64,26 +64,27 @@ cursor position."
 
 (defun parse-julia-staticlint-errors (output checker buffer)
   "Parse the errors for Flycheck, output by StaticLint.jl."
-  (setq julia-staticlint-errors nil
-	this-buffer-name (buffer-file-name buffer))
-  (with-temp-buffer
-    (insert output)
-    (goto-char (point-min))
-    (while (not (eobp))
-      (let ((this-error (buffer-substring
-			 (point) (progn (forward-line 1) (point)))))
-	;; Extract error data using regexps
-	(save-match-data
-	  (and (string-match
-		"\\(.*?\\):\\([0-9]*?\\):\\([0-9]*?\\): \\(\\(?:\\sw\\)*?\\): \\(.*\\)"
-		this-error)
-	       (setq filename (match-string 1 this-error)
-		     pos-beg (string-to-number (match-string 2 this-error))
-		     pos-end (string-to-number (match-string 3 this-error))
-		     level (match-string 4 this-error)
-		     message (match-string 5 this-error))))
-	;; Save error in a flycheck-error object
-	(when (string= filename this-buffer-name)
+  (let ((julia-staticlint-errors nil)
+        (this-buffer-name (buffer-file-name buffer)))
+    (with-temp-buffer
+      (insert output)
+      (goto-char (point-min))
+      (while (not (eobp))
+        (let ((this-error (buffer-substring
+			   (point) (progn (forward-line 1) (point)))))
+	  ;; Extract error data using regexps
+	  (save-match-data
+	    (and (string-match
+		  "\\(.*?\\):\\([0-9]*?\\):\\([0-9]*?\\): \\(\\(?:\\sw\\)*?\\): \\(.*\\)"
+		  this-error)
+	         (setq filename (match-string 1 this-error)
+		       pos-beg (string-to-number (match-string 2 this-error))
+		       pos-end (string-to-number (match-string 3 this-error))
+		       level (match-string 4 this-error)
+		       message (match-string 5 this-error))))
+
+          ;; Save error in a flycheck-error object
+
 	  ;; Check if final line contains a comment starting with `#noerr',
 	  ;; which means suppress this error
 	  (with-current-buffer buffer
@@ -93,29 +94,30 @@ cursor position."
 				       (goto-char search-pos-start)
 				       (forward-line)
 				       (1- (point)))))
-		(goto-char search-pos-start)
-		(setq julia-staticlint-found-ignore
+	        (goto-char search-pos-start)
+	        (setq julia-staticlint-found-ignore
 		      (re-search-forward
 		       (format "#no%s\\(?:$\\|\s+.*$\\)"
 			       (cond ((string= level "error") "err")
 				     ((string= level "warn") "warn")
 				     ((string= level "info") "info")
 				     (t "err"))) search-pos-end t)))))
+
 	  (unless julia-staticlint-found-ignore
 	    ;; Extract error location
 	    (with-current-buffer buffer
 	      (save-excursion
-		(goto-char pos-beg)
-		(setq line-beg (line-number-at-pos)
+	        (goto-char pos-beg)
+	        (setq line-beg (line-number-at-pos)
 		      col-beg (1+ (julia-staticlint-chars-from-start
 				   pos-beg)))
-		(goto-char pos-end)
-		(setq line-end (line-number-at-pos)
+	        (goto-char pos-end)
+	        (setq line-end (line-number-at-pos)
 		      col-end (1+ (julia-staticlint-chars-from-start
 				   pos-end)))))
 	    ;; Save the error to list of errors in this buffer
 	    (add-to-list 'julia-staticlint-errors
-			 (flycheck-error-new
+		         (flycheck-error-new
 			  :buffer buffer
 			  :checker checker
 			  :filename filename
@@ -129,21 +131,21 @@ cursor position."
 			  :line line-beg
 			  :end-line line-end
 			  :column col-beg
-			  :end-column col-end))))
-	)))
-  julia-staticlint-errors)
+			  :end-column col-end)))
+
+	  )))
+    julia-staticlint-errors))
 
 (flycheck-define-checker julia-staticlint
   "A Julia static syntax checker using StaticLint.jl.
 
 See URL `https://github.com/julia-vscode/StaticLint.jl'."
-  :command ("julia"
-	    (eval (concat julia-staticlint-client-path))
+  :command ("julia" (eval (concat julia-staticlint-client-path))
 	    source-original)
   :error-parser parse-julia-staticlint-errors
   :modes julia-mode
   :predicate (lambda ()
-               ;; Only run when there is a file associated with the buffer
+               ;; Only run if there is a file associated with the buffer
                (file-exists-p (buffer-file-name)))
   )
 
