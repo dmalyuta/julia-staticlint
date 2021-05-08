@@ -53,7 +53,6 @@
 (defvar julia-staticlint-server-proc nil
   "Server background process.")
 
-;;;###autoload
 (defun julia-staticlint-chars-from-start (pos)
   "Get the number of characters between line start and current
 cursor position."
@@ -63,7 +62,6 @@ cursor position."
     (let ((start~col (point)))
       (length (buffer-substring start~col pos)))))
 
-;;;###autoload
 (defun parse-julia-staticlint-errors (output checker buffer)
   "Parse the errors for Flycheck, output by StaticLint.jl."
   (setq julia-staticlint-errors nil
@@ -144,25 +142,20 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 	    source-original)
   :error-parser parse-julia-staticlint-errors
   :modes julia-mode
-  :predicate
-  (lambda ()
-    ;; Only run when there is a file associated with the buffer and
-    ;; an existing process is not already running
-    (and (file-exists-p (buffer-file-name))
-         (not (process-live-p julia-staticlint-server-proc))))
+  :predicate (lambda ()
+               ;; Only run when there is a file associated with the buffer
+               (file-exists-p (buffer-file-name)))
   )
 
-;;;###autoload
 (defun julia-staticlint-init ()
   "Install the flycheck linter."
   (interactive)
   (add-to-list 'flycheck-checkers 'julia-staticlint))
 
-;;;###autoload
 (defun julia-staticlint-activate ()
   "Activate the Julia static checker."
   (interactive)
-  (unless (get-buffer-process julia-staticlint-server-proc-buf)
+  (unless (process-live-p julia-staticlint-server-proc)
     ;; Start the background process if it is not already running
     (setq julia-staticlint-server-proc-buf
 	  (get-buffer-create julia-staticlint-server-buf-name))
@@ -174,14 +167,12 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 	   :command `("julia" ,julia-staticlint-server-path)
 	   :noquery t))))
 
-;;;###autoload
 (defun julia-staticlint-stop ()
   "Stop the background Julia static checker process."
   (interactive)
   (when (get-buffer-process julia-staticlint-server-proc-buf)
     (delete-process julia-staticlint-server-proc-buf)))
 
-;;;###autoload
 (defun julia-staticlint-restart ()
   "Restart the background Julia static checker process."
   (interactive)
