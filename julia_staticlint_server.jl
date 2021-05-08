@@ -263,6 +263,11 @@ function lint_file(rootfile::String,
                 files_src[p] = read(p, String)
             end
 
+            if p!=rootfile
+                # Skip errors from other files
+                continue
+            end
+
             if (SL.haserror(x) &&
                 SL.errorof(x) isa SL.LintCodes)
                 description = SL.LintCodeDescriptions[SL.errorof(x)]

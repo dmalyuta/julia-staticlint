@@ -71,7 +71,8 @@ cursor position."
       (goto-char (point-min))
       (while (not (eobp))
         (let ((this-error (buffer-substring
-			   (point) (progn (forward-line 1) (point)))))
+			   (point) (progn (forward-line 1) (point))))
+              filename pos-beg pos-end level message buffer-with-file)
 	  ;; Extract error data using regexps
 	  (save-match-data
 	    (and (string-match
@@ -82,57 +83,55 @@ cursor position."
 		       pos-end (string-to-number (match-string 3 this-error))
 		       level (match-string 4 this-error)
 		       message (match-string 5 this-error))))
-
-          ;; Save error in a flycheck-error object
-
-	  ;; Check if final line contains a comment starting with `#noerr',
-	  ;; which means suppress this error
-	  (with-current-buffer buffer
-	    (save-excursion
-	      (let* ((search-pos-start pos-end)
-		     (search-pos-end (progn
-				       (goto-char search-pos-start)
-				       (forward-line)
-				       (1- (point)))))
-	        (goto-char search-pos-start)
-	        (setq julia-staticlint-found-ignore
-		      (re-search-forward
-		       (format "#no%s\\(?:$\\|\s+.*$\\)"
-			       (cond ((string= level "error") "err")
-				     ((string= level "warn") "warn")
-				     ((string= level "info") "info")
-				     (t "err"))) search-pos-end t)))))
-
-	  (unless julia-staticlint-found-ignore
-	    ;; Extract error location
+          ;; Save errors as a list of flycheck-error objects
+          (when (string= filename this-buffer-name)
+            ;; Check if final line contains a comment starting with `#noerr',
+	    ;; which means suppress this error
 	    (with-current-buffer buffer
 	      (save-excursion
-	        (goto-char pos-beg)
-	        (setq line-beg (line-number-at-pos)
-		      col-beg (1+ (julia-staticlint-chars-from-start
-				   pos-beg)))
-	        (goto-char pos-end)
-	        (setq line-end (line-number-at-pos)
-		      col-end (1+ (julia-staticlint-chars-from-start
-				   pos-end)))))
-	    ;; Save the error to list of errors in this buffer
-	    (add-to-list 'julia-staticlint-errors
-		         (flycheck-error-new
-			  :buffer buffer
-			  :checker checker
-			  :filename filename
-			  :message message
-			  :level (cond ((string= level "error") 'error)
-				       ((string= level "warn") 'warning)
-				       ((string= level "info") 'info)
-				       (t 'error))
-			  ;; Set the error range in text, spanning from
-			  ;; (line-beg,col-beg) to (line-end,col-end)
-			  :line line-beg
-			  :end-line line-end
-			  :column col-beg
-			  :end-column col-end)))
-
+	        (let* ((search-pos-start pos-end)
+		       (search-pos-end (progn
+				         (goto-char search-pos-start)
+				         (forward-line)
+				         (1- (point)))))
+	          (goto-char search-pos-start)
+	          (setq julia-staticlint-found-ignore
+		        (re-search-forward
+		         (format "#no%s\\(?:$\\|\s+.*$\\)"
+			         (cond ((string= level "error") "err")
+				       ((string= level "warn") "warn")
+				       ((string= level "info") "info")
+				       (t "err"))) search-pos-end t)))))
+	    (unless julia-staticlint-found-ignore
+	      ;; Extract error location
+	      (with-current-buffer buffer
+	        (save-excursion
+	          (goto-char pos-beg)
+	          (setq line-beg (line-number-at-pos)
+		        col-beg (1+ (julia-staticlint-chars-from-start
+				     pos-beg)))
+	          (goto-char pos-end)
+	          (setq line-end (line-number-at-pos)
+		        col-end (1+ (julia-staticlint-chars-from-start
+				     pos-end)))))
+	      ;; Save the error to list of errors in this buffer
+	      (add-to-list 'julia-staticlint-errors
+		           (flycheck-error-new
+			    :buffer buffer
+			    :checker checker
+			    :filename filename
+			    :message message
+			    :level (cond ((string= level "error") 'error)
+				         ((string= level "warn") 'warning)
+				         ((string= level "info") 'info)
+				         (t 'error))
+			    ;; Set the error range in text, spanning from
+			    ;; (line-beg,col-beg) to (line-end,col-end)
+			    :line line-beg
+			    :end-line line-end
+			    :column col-beg
+			    :end-column col-end)))
+            )
 	  )))
     julia-staticlint-errors))
 
