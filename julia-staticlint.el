@@ -144,9 +144,13 @@ See URL `https://github.com/julia-vscode/StaticLint.jl'."
 	    source-original)
   :error-parser parse-julia-staticlint-errors
   :modes julia-mode
-  :predicate (lambda ()
-	       ;; Only run when there is a file associated with the buffer
-	       (file-exists-p (buffer-file-name))))
+  :predicate
+  (lambda ()
+    ;; Only run when there is a file associated with the buffer and
+    ;; an existing process is not already running
+    (and (file-exists-p (buffer-file-name))
+         (not (process-live-p julia-staticlint-server-proc))))
+  )
 
 ;;;###autoload
 (defun julia-staticlint-init ()
