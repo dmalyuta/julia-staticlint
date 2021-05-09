@@ -2,7 +2,7 @@ using Sockets
 using Printf
 
 const file_to_lint = @sprintf "%s\n" Base.ARGS[1]
-const TIMEOUT = 60 # Number of seconds to wait before closing
+const TIMEOUT = 300 # Number of seconds to wait before closing
 
 """
     read_timeout(tcp)
