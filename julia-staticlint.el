@@ -71,7 +71,7 @@ cursor position."
         (this-buffer-name (buffer-file-name buffer)))
     ;; Collect a list of errors to ignore
     (save-match-data
-      (while (string-match "^#nolint:\s*\\(.*\\)$"
+      (while (string-match "^.*#nolint:\s*\\(.*\\)$"
                            string pos)
         (setq pos (match-end 1))
         (setq julia-staticlint-ignore-list
