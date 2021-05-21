@@ -64,8 +64,21 @@ cursor position."
 
 (defun parse-julia-staticlint-errors (output checker buffer)
   "Parse the errors for Flycheck, output by StaticLint.jl."
-  (let ((julia-staticlint-errors nil)
+  (let ((pos 0)
+        (string (buffer-string))
+        julia-staticlint-ignore-list
+        (julia-staticlint-errors nil)
         (this-buffer-name (buffer-file-name buffer)))
+    ;; Collect a list of errors to ignore
+    (save-match-data
+      (while (string-match "^#nolint:\s*\\(.*\\)$"
+                           string pos)
+        (setq pos (match-end 1))
+        (setq julia-staticlint-ignore-list
+              (append julia-staticlint-ignore-list
+                      (split-string (match-string 1 string) ",\s*")))
+        ))
+    ;; Go through the list of flagged errors by staticlint
     (with-temp-buffer
       (insert output)
       (goto-char (point-min))
@@ -82,7 +95,7 @@ cursor position."
 		       pos-beg (string-to-number (match-string 2 this-error))
 		       pos-end (string-to-number (match-string 3 this-error))
 		       level (match-string 4 this-error)
-		       message (match-string 5 this-error))))
+		       msg (match-string 5 this-error))))
           ;; Save errors as a list of flycheck-error objects
           (when (string= filename this-buffer-name)
             ;; Check if final line contains a comment starting with `#noerr',
@@ -93,15 +106,26 @@ cursor position."
 		       (search-pos-end (progn
 				         (goto-char search-pos-start)
 				         (forward-line)
-				         (1- (point)))))
+				         (1- (point))))
+                       (this-error (buffer-substring pos-beg pos-end)))
 	          (goto-char search-pos-start)
 	          (setq julia-staticlint-found-ignore
-		        (re-search-forward
-		         (format "#no%s\\(?:$\\|\s+.*$\\)"
-			         (cond ((string= level "error") "err")
-				       ((string= level "warn") "warn")
-				       ((string= level "info") "info")
-				       (t "err"))) search-pos-end t)))))
+		        (or
+                         ;; Check against ignore list
+                         (let ((is-matched nil)
+                                  (case-fold-search nil))
+                              (mapc (lambda (r)
+                                      (when (string-match r this-error)
+                                        (setq is-matched t)))
+                                    julia-staticlint-ignore-list)
+                              is-matched)
+                         ;; Check inline ignore
+                         (re-search-forward
+		          (format "#no%s\\(?:$\\|\s+.*$\\)"
+			          (cond ((string= level "error") "err")
+				        ((string= level "warn") "warn")
+				        ((string= level "info") "info")
+				        (t "err"))) search-pos-end t))))))
 	    (unless julia-staticlint-found-ignore
 	      ;; Extract error location
 	      (with-current-buffer buffer
@@ -120,7 +144,7 @@ cursor position."
 			    :buffer buffer
 			    :checker checker
 			    :filename filename
-			    :message message
+			    :message msg
 			    :level (cond ((string= level "error") 'error)
 				         ((string= level "warn") 'warning)
 				         ((string= level "info") 'info)
@@ -130,8 +154,7 @@ cursor position."
 			    :line line-beg
 			    :end-line line-end
 			    :column col-beg
-			    :end-column col-end)))
-            )
+			    :end-column col-end))))
 	  )))
     julia-staticlint-errors))
 
